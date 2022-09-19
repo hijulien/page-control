@@ -58,7 +58,6 @@ video{
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  border: 1px solid black;
 }
 
 .tools-switch {
@@ -118,7 +117,6 @@ video{
   position: absolute;
   width: 200px;
   height: 100vh;
-  border: 1px solid black;
 }
 
 .sidebar h1{

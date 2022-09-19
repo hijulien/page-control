@@ -8,8 +8,6 @@ const App = () => {
   console.log("组件执行");
 
   const [data, setData] = useState({
-    visiable: false,
-    timer: false,
     peer: {},
     dataChan: null,
     mediaChan: null
@@ -19,36 +17,10 @@ const App = () => {
 
   const input = useRef();
 
+  const tools = useRef();
+
   const toolsShow = () => {
-    if (data.mediaChan != null) {
-      setData({
-        ...data,
-        remoteId: data.dataChan?.peer,
-        visiable: true,
-        timer: false
-      })
-      setTimeout(() => {
-        setData({
-          ...data,
-          remoteId: data.dataChan?.peer,
-          visiable: true,
-          timer: true
-        })
-      }, 500)
-    } else {
-      setData({
-        ...data,
-        visiable: true,
-        timer: false
-      })
-      setTimeout(() => {
-        setData({
-          ...data,
-          visiable: true,
-          timer: true
-        })
-      }, 500)
-    }
+    tools.current.style.height = "70px"
   }
 
   const mediaCall = () => {
@@ -79,13 +51,16 @@ const App = () => {
       resolve(mediaStream)
     }).then(localStream => {
       const mediaConn = data.peer.call(input.current.value, localStream);
+      const dataConn = data.peer.connect(input.current.value);
       mediaConn.on("close", () => console.log("媒体连接被挂断"))
+      dataConn.on('close', () => console.log("数据连接被挂断"))
       mediaConn.on('stream', (remoteStream) => {
         remote.current.srcObject = remoteStream;
       });
       setData({
         ...data,
-        mediaChan: mediaConn
+        mediaChan: mediaConn,
+        dataChan: dataConn
       })
     })
       .catch(err => {
@@ -93,44 +68,154 @@ const App = () => {
       });
   }
 
-  const dataCall = () => {
-    const dataConn = data.peer.connect(input.current.value);
-    setData({
-      ...data,
-      dataChan: dataConn
-    });
-
-    dataConn.on('close', () => console.log("数据连接被挂断"))
-  }
-
   const hangUp = () => {
     console.log("挂断");
   }
 
   const clickEvent = (e) => {
-    if (data.timer) {
-      setData({
-        ...data,
-        remoteId: '',
-        visiable: false,
-        timer: false,
+    tools.current.style.height = 0;
+
+    if (data.dataChan && data.mediaChan) {
+      data.dataChan.send({
+        type: "leftClick",
+        X: (e.nativeEvent.offsetX / remote.current.offsetWidth).toFixed(5),
+        Y: (e.nativeEvent.offsetY / remote.current.offsetHeight).toFixed(5)
       })
-    }
-    if (data.dataChan != null) {
-      data.dataChan.send([(e.nativeEvent.offsetX / remote.current.offsetWidth).toFixed(5), (e.nativeEvent.offsetY / remote.current.offsetHeight).toFixed(5)])
     }
   }
 
-  window.onmousewheel = function (e) {
-    if (e.wheelDelta > 0) {
-      console.log('向上滑了', e.wheelDelta);
-    } else {
-      console.log('向下滑了', e.wheelDelta);
+  const rightClick = (e) => {
+    if (data.dataChan && data.mediaChan) {
+      data.dataChan.send({
+        type: "rightClick",
+        X: (e.nativeEvent.offsetX / remote.current.offsetWidth).toFixed(5),
+        Y: (e.nativeEvent.offsetY / remote.current.offsetHeight).toFixed(5)
+      })
     }
+    e.preventDefault()
+  }
+
+  const wheelEvent = (e) => {
+    if (data.dataChan && data.mediaChan) {
+      if (e.deltaY > 0 || e.datail > 0) {
+        data.dataChan.send({
+          type: "downWheel",
+        })
+      } else {
+        data.dataChan.send({
+          type: "upWheel",
+        })
+      }
+    }
+  }
+
+  const mouseMove = (e) => {
+    throttle(e)
+  }
+
+  const throttle = ((e) => {
+    let last = 0
+    return (e, wait = 100) => {
+      let now = +new Date()
+      if (data.dataChan && data.mediaChan && now - last > wait) {
+        data.dataChan.send({
+          type: "mouseMove",
+          X: (e.nativeEvent.offsetX / remote.current.offsetWidth).toFixed(5),
+          Y: (e.nativeEvent.offsetY / remote.current.offsetHeight).toFixed(5)
+        })
+        last = now
+      }
+    }
+  })()
+
+  var patt = /^[a-z]{1}$/i;
+
+  // data.dataChan && data.mediaChan &&
+  const keyUp = (e) => {
+
+    if (data.dataChan && data.mediaChan) {
+      switch (true) {
+        //匹配字母
+        case (patt.test(e.key)):
+          data.dataChan.send({
+            type: "key",
+            value: e.key.toUpperCase(),
+            ctrlKey: e.ctrlKey,
+            shiftKey: e.shiftKey
+          })
+          break;
+
+        //匹配数字
+        case e.code.substring(0, 5) === "Digit":
+          console.log("Num" + e.code.substr(e.code.length - 1, 1));
+          data.dataChan.send({
+            type: "key",
+            value: "Num" + e.code.substr(e.code.length - 1, 1),
+            ctrlKey: e.ctrlKey,
+            shiftKey: e.shiftKey
+          })
+          break;
+
+        case e.code.substring(0, 6) === "Numpad":
+          data.dataChan.send({
+            type: "key",
+            value: "NumPad" + e.code.substr(e.code.length - 1, 1),
+            ctrlKey: e.ctrlKey,
+            shiftKey: e.shiftKey
+          })
+          break;
+
+        //匹配方向键
+        case e.key.substring(0, 5) === "Arrow":
+          data.dataChan.send({
+            type: "key",
+            value: e.key.slice(5),
+            ctrlKey: e.ctrlKey,
+            shiftKey: e.shiftKey
+          })
+          break;
+
+        case (e.code === "Minus" || e.code === "Equal" || e.code === "Backslash" || e.code === "Semicolon" || e.code === "Quote" || e.code === "Comma" || e.code === "Period" || e.key === "Slash" || e.code === "Space"):
+          data.dataChan.send({
+            type: "key",
+            value: e.code,
+            ctrlKey: e.ctrlKey,
+            shiftKey: e.shiftKey
+          })
+          break;
+
+        case e.code === "Backquote":
+          data.dataChan.send({
+            type: "key",
+            value: "Grave",
+            ctrlKey: e.ctrlKey,
+            shiftKey: e.shiftKey
+          })
+          break;
+
+        default:
+          data.dataChan.send({
+            type: "key",
+            value: e.key,
+            ctrlKey: e.ctrlKey,
+            shiftKey: e.shiftKey
+          })
+          break;
+      }
+    }
+    e.preventDefault();
+  }
+
+  const over = () => {
+    document.addEventListener('keyup', keyUp)
+  }
+
+  const out = () => {
+    document.removeEventListener('keyup', keyUp)
   }
 
   useEffect(() => {
-    const peer = new Peer('office', {
+    const peer = new Peer('', {
       host: '124.222.249.224',
       port: '9000',
       path: '/myapp'
@@ -174,6 +259,9 @@ const App = () => {
     peer.on("error", err => {
       console.log("on error", err.type);
     })
+    return () => {
+      document.removeEventListener('keyup', keyUp)
+    }
   }, [])
 
   return (
@@ -184,18 +272,18 @@ const App = () => {
         playsInline
         ref={remote}
         onClick={clickEvent}
-      // onMouseMove={move}
+        onContextMenu={rightClick}
+        onWheel={wheelEvent}
+        onMouseMove={mouseMove}
+        onMouseOver={over}
+        onMouseOut={out}
       />
 
-      {
-        data.visiable
-          ?
-          ""
-          :
-          <div className='tools-switch' onClick={toolsShow}></div>
-      }
+      <div className='tools-switch' onClick={toolsShow}></div>
+
       <div
         className={data.visiable ? 'tools tools-show' : 'tools tools-hide'}
+        ref={tools}
       >
         <div className='tools-input'>
           <input
@@ -205,11 +293,9 @@ const App = () => {
           />
         </div>
         <div className='tools-items'>
-          <Button ghost onClick={mediaCall}>媒体</Button>
+          <Button ghost onClick={mediaCall}>连接</Button>
 
           <Button ghost onClick={hangUp}>断开</Button>
-
-          <Button ghost onClick={dataCall}>数据</Button>
         </div>
       </div>
       <div className='sidebar'>
