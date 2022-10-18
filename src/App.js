@@ -74,7 +74,7 @@ const App = () => {
 
   const clickEvent = (e) => {
     tools.current.style.height = 0;
-
+    console.log(e)
     if (data.dataChan && data.mediaChan) {
       data.dataChan.send({
         type: "leftClick",
@@ -132,7 +132,7 @@ const App = () => {
 
   // data.dataChan && data.mediaChan &&
   const keyUp = (e) => {
-
+    console.log(e)
     if (data.dataChan && data.mediaChan) {
       switch (true) {
         //匹配字母
@@ -279,29 +279,45 @@ const App = () => {
         onMouseOut={out}
       />
 
-      <div className='tools-switch' onClick={toolsShow}></div>
+      {
+        data.peer._id
+          ?
+          <>
+            <div className='tools-switch' onClick={toolsShow}></div>
 
-      <div
-        className={data.visiable ? 'tools tools-show' : 'tools tools-hide'}
-        ref={tools}
-      >
-        <div className='tools-input'>
-          <input
-            type="text"
-            placeholder="远程ID"
-            ref={input}
-          />
-        </div>
-        <div className='tools-items'>
-          <Button ghost onClick={mediaCall}>连接</Button>
+            <div
+              className={data.visiable ? 'tools tools-show' : 'tools tools-hide'}
+              ref={tools}
+            >
+              <div className='tools-input'>
+                <input
+                  type="text"
+                  placeholder="远程ID"
+                  ref={input}
+                />
+              </div>
+              <div className='tools-items'>
+                <Button ghost onClick={mediaCall}>连接</Button>
 
-          <Button ghost onClick={hangUp}>断开</Button>
-        </div>
-      </div>
-      <div className='sidebar'>
-        <h3>local:{data.peer._id}</h3>
-        <h3>remote:{data.dataChan?.peer}</h3>
-      </div>
+                <Button ghost onClick={hangUp}>断开</Button>
+              </div>
+            </div>
+            <div className='sidebar'>
+              <h3>ID:{data.dataChan?.peer}</h3>
+            </div>
+          </>
+          :
+          <div className='loading'>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+      }
     </div>
   );
 }
